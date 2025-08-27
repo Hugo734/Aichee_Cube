@@ -1,0 +1,25 @@
+body{
+    background-color: azure;
+    font-family: 'Times New Roman', Times, serif;
+    text-align: center;
+    padding-top: 50px;
+    color: #333;
+}
+
+h1{
+    color: #007ACC;
+    font-size: 2.5em;
+}
+
+#status{
+    font-weight: lighter;
+    margin: 20px 0;
+    font-size: 1.2em;
+    color: #007ACC;
+}
+
+#sensor {
+    font-size: 3em;
+    color: #333;
+    margin-top: 10px;
+}

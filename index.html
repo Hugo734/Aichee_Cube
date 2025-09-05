@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SCD30 Data Logger</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="card">
+    <h1>SCD30 Data Logger</h1>
+    <p>Status: <span id="status" class="disconnected">Disconnected</span></p>
+     
+    <div class="row">
+      <div class="label">CO₂ (ppm):</div>
+      <div id="co2" class="val">—</div>
+    </div>
+     
+    <div class="row">
+      <div class="label">Temperature (°C):</div>
+      <div id="temp" class="val">—</div>
+    </div>
+     
+    <div class="row">
+      <div class="label">Humidity (%):</div>
+      <div id="hum" class="val">—</div>
+    </div>
+     
+    <hr/>
+     
+    <div class="row">
+      <div class="label">PWM value:</div>
+      <div id="pwm" class="val">—</div>
+    </div>
+    
+    <div class="stats" id="statsPanel">
+      <div class="stat-item">
+        <span class="stat-label">Records:</span>
+        <span class="stat-value" id="recordCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Avg CO₂:</span>
+        <span class="stat-value" id="avgCO2">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Avg Temp:</span>
+        <span class="stat-value" id="avgTemp">—</span>
+      </div>
+    </div>
+    
+    <div class="btn-group">
+      <button class="btn" onclick="downloadCSV()">📥 Download Excel (CSV)</button>
+      <button class="btn btn-info" onclick="refreshStats()">🔄 Refresh Stats</button>
+      <button class="btn btn-danger" onclick="clearData()">🗑️ Clear Data</button>
+    </div>
+     
+    <div class="info">
+      Data is logged every 5 seconds. Maximum 500 records stored.
+    </div>
+  </div>
+  
+  <div class="card">
+    <h2>CO₂ History (Last 60 seconds)</h2>
+    <canvas id="co2Chart"></canvas>
+    <div class="info">
+      Range: 400-2000 ppm | Updates every second
+    </div>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>

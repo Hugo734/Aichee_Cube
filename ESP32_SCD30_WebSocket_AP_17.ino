@@ -826,7 +826,7 @@ void handleDownloadCSV() {
   
   // Set appropriate headers for file download
   server.sendHeader("Content-Type", "text/csv");
-  server.sendHeader("Content-Disposition", "attachment; filename=\"scd30_data.csv\"");
+  server.sendHeader("Content-Disposition", "attachment; filename=\"Aether_data.csv\"");
   server.sendHeader("Cache-Control", "no-cache");
   server.send(200, "text/csv", csv);
   

@@ -1252,7 +1252,8 @@ void setup() {
     display.display();
   } else {
     Serial.println("SCD30 ready.");
-    airSensor.setMeasurementInterval(2);  // Set to 2-second intervals
+    airSensor.setAutoSelfCalibration(false); //Deactivate ASC
+    airSensor.setMeasurementInterval(3);  // Set to 3-second intervals
   }
   
   // Reserve memory for data logging

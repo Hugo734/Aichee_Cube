@@ -32,8 +32,6 @@ WebSocketsServer webSocket = WebSocketsServer(81);  // WebSocket server on port 
 #define SCREEN_HEIGHT 64    // OLED display height in pixels
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-
-
 // Splash screen bitmap (128x64 pixels) - displayed on startup
 // This array contains the pixel data for the initial logo/graphic
 const unsigned char splash_bitmap[] PROGMEM = {
@@ -114,14 +112,9 @@ unsigned long debounceDelay = 200;      // Debounce delay in milliseconds
 // Long Press Detection Variables
 // Used to detect when user holds the encoder button for screen switching
 unsigned long buttonPressStartTime = 0;
-bool buttonLongPressDetected = false; // Check if long press was detected
-//const unsigned long LONG_PRESS_TIME = 2000; // 2 seconds for long press (gauge switch)
-//const unsigned long EXIT_AUTO_PRESS_TIME = 6000; // 6 seconds to exit auto mode
-
-// Arturo voy a cambiar la logica de los modos ahora sera que lo presionas una vez para cambiar y luego dos veces para salir
-
- 
-
+bool buttonLongPressDetected = false;
+const unsigned long LONG_PRESS_TIME = 2000; // 2 seconds for long press (gauge switch)
+const unsigned long EXIT_AUTO_PRESS_TIME = 6000; // 6 seconds to exit auto mode
 
 // PWM Control Variables
 int pwmValue = 0;  // Current PWM value (0-255) for motor speed control
@@ -131,6 +124,7 @@ int autoModePWMTarget = 255; // Target PWM value after warmup in auto mode
 SCD30 airSensor;                        // SCD30 sensor object
 float lastCO2 = 0, lastTemp = 0, lastHum = 0;  // Latest sensor readings
 bool sensorDataValid = false;           // Flag indicating valid sensor data available
+
 
 // ===== DISPLAY SCREEN MANAGEMENT SYSTEM =====
 // Defines different screens that can be shown on the OLED
@@ -1319,7 +1313,6 @@ void loop() {
   // Detect button press (falling edge)
   if (currentButtonState == LOW && lastButtonState == HIGH) {
     buttonPressStartTime = currentMillis;
-    // If you change to true doesn't let you change mode it stucks in the logo
     buttonLongPressDetected = false;
   }
   

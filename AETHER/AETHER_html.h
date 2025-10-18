@@ -133,7 +133,7 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
   (function(){
     // ===== Client-side history (bounded) =====
     const MAX_POINTS = 5000;         // same as maxDataPoints (chart)
-    const STATS_POINTS = 1000;       // window for stats (<= MAX_POINTS)
+    const STATS_POINTS = 5000;       // window for stats (<= MAX_POINTS)
     const hist = { co2: [], temp: [], hum: [], pwm: [] };
     const MAX_RECORDS = 5000;        // capped number of rows stored for export
     const dataRecords = [];

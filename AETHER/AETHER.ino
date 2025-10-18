@@ -198,7 +198,7 @@ struct DataRecord {
 };
 
 std::vector<DataRecord> dataLog;               // Dynamic array to store data records
-const size_t MAX_DATA_RECORDS = 1000;          // Maximum records to prevent memory overflow
+const size_t MAX_DATA_RECORDS = 5000;          // Maximum records to prevent memory overflow
 unsigned long lastDataLog = 0;                 // Timestamp of last data log
 const unsigned long dataLogInterval = 2000;    // Log data every 2 seconds
 unsigned long systemStartTime = 0;             // System start timestamp for relative timing

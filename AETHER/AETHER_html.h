@@ -171,7 +171,7 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
       const link = document.createElement('a');
       link.href = url;
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      link.download = `scd30_data_${stamp}.csv`;
+      link.download = `AETHER_data_${stamp}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

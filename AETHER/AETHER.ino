@@ -16,7 +16,7 @@
 // WiFi Access Point Configuration
 // The ESP32 creates its own WiFi network that devices can connect to
 // ==========================
-const char* ssid = "Aether";      // Network name (SSID)
+const char* ssid = "Aethernet";      // Network name (SSID)
 const char* password = "12345678";      // Network password (min 8 chars required)
 DNSServer dnsServer; //DNSServer
 const byte DNS_PORT = 53; //DNSServer

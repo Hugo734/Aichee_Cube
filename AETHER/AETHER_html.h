@@ -135,7 +135,7 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
     const MAX_POINTS = 1000;         // same as maxDataPoints (chart)
     const STATS_POINTS = 1000;       // window for stats (<= MAX_POINTS)
     const hist = { co2: [], temp: [], hum: [], pwm: [] };
-    const MAX_RECORDS = 2000;        // capped number of rows stored for export
+    const MAX_RECORDS = 5000;        // capped number of rows stored for export
     const dataRecords = [];
 
     function pushBounded(arr, v, cap) {

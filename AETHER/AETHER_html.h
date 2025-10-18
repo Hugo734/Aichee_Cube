@@ -462,6 +462,9 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
       }
     }
 
+    funtion generateCSV() {
+    }
+
     // ===== Buttons =====
     window.downloadCSV = function() {
       const link = document.createElement('a');

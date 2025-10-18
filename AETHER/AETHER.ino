@@ -758,7 +758,6 @@ void setupWiFiAP() {
   server.on("/generate_204", handleRoot);  // Android
   server.on("/gen_204", handleRoot);       // Android
   server.on("/hotspot-detect.html", handleRoot);  // iOS
-  server.on("/connecttest.txt", handleRoot);  // Windows
 
 
   

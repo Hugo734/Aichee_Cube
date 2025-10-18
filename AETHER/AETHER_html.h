@@ -132,8 +132,8 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
   /* JavaScript for WebSocket communication and real-time updates */
   (function(){
     // ===== Client-side history (bounded) =====
-    const MAX_POINTS = 60;         // same as maxDataPoints (chart)
-    const STATS_POINTS = 60;       // window for stats (<= MAX_POINTS)
+    const MAX_POINTS = 1000;         // same as maxDataPoints (chart)
+    const STATS_POINTS = 1000;       // window for stats (<= MAX_POINTS)
     const hist = { co2: [], temp: [], hum: [], pwm: [] };
 
     function pushBounded(arr, v, cap) {
@@ -256,7 +256,7 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
     // ===== Chart (CO2) =====
     const canvas = document.getElementById('co2Chart');
     const ctx = canvas.getContext('2d');
-    const maxDataPoints = 60;
+    const maxDataPoints = 1000;
     const co2Data = [];
     const chartPadding = 30;
     const minCO2 = 0;

@@ -151,16 +151,18 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
     }
     function generateCSV() {
       if (dataRecords.length === 0) return '';
-      const lines = ['Captured At,Elapsed (ms),CO2 (ppm),Temperature (°C),Humidity (%),PWM'];
+      //const lines = ['Captured At,Elapsed (ms),CO2 (ppm),Temperature (°C),Humidity (%),PWM'];
+      const lines = ['Captured At,CO2 (ppm),Temperature (C),Humidity (%),PWM'];
       for (const rec of dataRecords) {
         const capturedIso = new Date(rec.capturedAt).toISOString();
-        const elapsed = Number.isFinite(rec.elapsed) ? rec.elapsed : '';
+        //const elapsed = Number.isFinite(rec.elapsed) ? rec.elapsed : '';
         const co2 = formatNumber(rec.co2, 0);
         const temp = formatNumber(rec.temp, 1);
         const hum = formatNumber(rec.hum, 1);
         const pwm = Number.isFinite(rec.pwm) ? rec.pwm : '';
-        lines.push([capturedIso, elapsed, co2, temp, hum, pwm].join(','));
-      }
+        //lines.push([capturedIso, elapsed, co2, temp, hum, pwm].join(','));
+        lines.push([capturedIso, co2, temp, hum, pwm].join(','));      
+        }
       return lines.join('\n');
     }
     function triggerCSVDownload(csvText) {

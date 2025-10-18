@@ -267,12 +267,10 @@ void logData() {
 
 String generateCSV() {
   String csv;
-  csv.reserve(64 + dataLog.size() * 48);
-  csv += F("Elapsed (ms),Elapsed (DD:HH:MM:SS),CO2 (ppm),Temperature (C),Humidity (%),PWM\n");
+  csv.reserve(64 + dataLog.size() * 40);
+  csv += F("Elapsed (DD:HH:MM:SS),CO2 (ppm),Temperature (C),Humidity (%),PWM\n");
 
   for (const auto& record : dataLog) {
-    csv += String(record.timestamp);
-    csv += ',';
     csv += getFormattedTime(record.timestamp);
     csv += ',';
     csv += String(record.co2, 0);

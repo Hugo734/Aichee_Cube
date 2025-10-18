@@ -8,7 +8,7 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SCD30 Data Logger</title>
+  <title>AETHER</title>
   <style>
     /* Optimized CSS for single-screen view */
     body{font-family:system-ui,Arial,sans-serif;margin:10px;line-height:1.4;background:#f5f5f5}
@@ -63,7 +63,7 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
 <body>
   <!-- Main control card -->
   <div class="card">
-    <h1>SCD30 Data Logger <span id="modeIndicator" class="mode-indicator"></span></h1>
+    <h1>AETHER <span id="modeIndicator" class="mode-indicator"></span></h1>
     <p style="margin:5px 0">Status: <span id="status" class="disconnected">Disconnected</span>
        <span id="loggingStatus" class="logging-status"></span></p>
     

@@ -265,21 +265,28 @@ void logData() {
  * @return String containing CSV formatted data
  */
 
-/* 
 String generateCSV() {
-  String csv = "Timestamp,CO2 (ppm),Temperature (C),Humidity (%),PWM Value\n";
-  
+  String csv;
+  csv.reserve(64 + dataLog.size() * 48);
+  csv += F("Elapsed (ms),Elapsed (DD:HH:MM:SS),CO2 (ppm),Temperature (C),Humidity (%),PWM\n");
+
   for (const auto& record : dataLog) {
-    csv += getFormattedTime(record.timestamp) + ",";
-    csv += String(record.co2, 0) + ",";
-    csv += String(record.temperature, 1) + ",";
-    csv += String(record.humidity, 1) + ",";
-    csv += String(record.pwm) + "\n";
+    csv += String(record.timestamp);
+    csv += ',';
+    csv += getFormattedTime(record.timestamp);
+    csv += ',';
+    csv += String(record.co2, 0);
+    csv += ',';
+    csv += String(record.temperature, 1);
+    csv += ',';
+    csv += String(record.humidity, 1);
+    csv += ',';
+    csv += String(record.pwm);
+    csv += '\n';
   }
-  
+
   return csv;
 }
-*/
 
 /**
  * HTTP handler for CSV file download
@@ -287,11 +294,13 @@ String generateCSV() {
  */
 
 // Comment to try the implementation of the new web server
-/*
 void handleDownloadCSV() {
+  if (dataLog.empty()) {
+    server.send(404, "text/plain", "No data available");
+    return;
+  }
+
   String csv = generateCSV();
-  
-  // Set appropriate headers for file download
   server.sendHeader("Content-Type", "text/csv");
   server.sendHeader("Content-Disposition", "attachment; filename=\"Aether_data.csv\"");
   server.sendHeader("Cache-Control", "no-cache");
@@ -299,7 +308,6 @@ void handleDownloadCSV() {
   
   Serial.println("CSV file downloaded");
 }
-*/
 
 
 /**
@@ -748,9 +756,9 @@ void setupWiFiAP() {
   
   // Configure HTTP server routes
   server.on("/", handleRoot);
-  //server.on("/download", handleDownloadCSV);
+  server.on("/download", handleDownloadCSV);
   //server.on("/stats", handleStats);
-  //server.on("/clear", HTTP_POST, handleClearData);
+  server.on("/clear", HTTP_POST, handleClearData);
   server.on("/startlog", HTTP_POST, handleStartLogging);
   server.on("/toggle", HTTP_POST, handleToggleLogging);
 

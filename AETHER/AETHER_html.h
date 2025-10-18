@@ -135,10 +135,45 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
     const MAX_POINTS = 1000;         // same as maxDataPoints (chart)
     const STATS_POINTS = 1000;       // window for stats (<= MAX_POINTS)
     const hist = { co2: [], temp: [], hum: [], pwm: [] };
+    const MAX_RECORDS = 2000;        // capped number of rows stored for export
+    const dataRecords = [];
 
     function pushBounded(arr, v, cap) {
       arr.push(v);
       if (arr.length > cap) arr.shift();
+    }
+    function addDataRecord(entry) {
+      dataRecords.push(entry);
+      if (dataRecords.length > MAX_RECORDS) dataRecords.shift();
+    }
+    function formatNumber(value, digits) {
+      return Number.isFinite(value) ? value.toFixed(digits) : '';
+    }
+    function generateCSV() {
+      if (dataRecords.length === 0) return '';
+      const lines = ['Captured At,Elapsed (ms),CO2 (ppm),Temperature (°C),Humidity (%),PWM'];
+      for (const rec of dataRecords) {
+        const capturedIso = new Date(rec.capturedAt).toISOString();
+        const elapsed = Number.isFinite(rec.elapsed) ? rec.elapsed : '';
+        const co2 = formatNumber(rec.co2, 0);
+        const temp = formatNumber(rec.temp, 1);
+        const hum = formatNumber(rec.hum, 1);
+        const pwm = Number.isFinite(rec.pwm) ? rec.pwm : '';
+        lines.push([capturedIso, elapsed, co2, temp, hum, pwm].join(','));
+      }
+      return lines.join('\n');
+    }
+    function triggerCSVDownload(csvText) {
+      const blob = new Blob([csvText], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      link.download = `scd30_data_${stamp}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
     function statsOf(arr, window = STATS_POINTS) {
       const n = Math.min(arr.length, window);
@@ -344,8 +379,8 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
     const maxReconnectAttempts = 10, reconnectDelay = 2000;
 
     function updateStatsFromClient() {
-      // count vs cap (chart buffer)
-      recordCountEl.textContent = `${co2Data.length}/${maxDataPoints}`;
+      // recorded samples vs cap
+      recordCountEl.textContent = `${dataRecords.length}/${MAX_RECORDS}`;
 
       // sliding-window stats from client history
       const sCO2  = statsOf(hist.co2);
@@ -392,46 +427,70 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
         ws.addEventListener('message', (evt) => {
           try {
             const d = JSON.parse(evt.data);
-
+            const elapsedField = Number(d.t);
+            const record = {
+              capturedAt: Date.now(),
+              elapsed: Number.isFinite(elapsedField) ? Math.round(elapsedField) : null,
+              co2: null,
+              temp: null,
+              hum: null,
+              pwm: null
+            };
             // CO2
             if (d.co2 !== undefined) {
               const co2Value = parseFloat(d.co2);
-              co2Data.push(co2Value);
-              if (co2Data.length > maxDataPoints) co2Data.shift();
-              drawChart();
-              co2Gauge.draw(co2Value);
-              document.getElementById('co2GaugeValue').textContent = co2Value.toFixed(0) + ' ppm';
-              pushBounded(hist.co2, co2Value, MAX_POINTS);
+              if (Number.isFinite(co2Value)) {
+                co2Data.push(co2Value);
+                if (co2Data.length > maxDataPoints) co2Data.shift();
+                drawChart();
+                co2Gauge.draw(co2Value);
+                document.getElementById('co2GaugeValue').textContent = co2Value.toFixed(0) + ' ppm';
+                pushBounded(hist.co2, co2Value, MAX_POINTS);
+                record.co2 = co2Value;
+              }
             }
 
             // Temp
             if (d.temp !== undefined) {
               const tempValue = parseFloat(d.temp);
-              tempGauge.draw(tempValue);
-              document.getElementById('tempGaugeValue').textContent = tempValue.toFixed(1) + ' °C';
-              pushBounded(hist.temp, tempValue, MAX_POINTS);
+              if (Number.isFinite(tempValue)) {
+                tempGauge.draw(tempValue);
+                document.getElementById('tempGaugeValue').textContent = tempValue.toFixed(1) + ' °C';
+                pushBounded(hist.temp, tempValue, MAX_POINTS);
+                record.temp = tempValue;
+              }
             }
 
             // Hum
             if (d.hum !== undefined) {
               const humValue = parseFloat(d.hum);
-              humGauge.draw(humValue);
-              document.getElementById('humGaugeValue').textContent = humValue.toFixed(1) + ' %';
-              pushBounded(hist.hum, humValue, MAX_POINTS);
+              if (Number.isFinite(humValue)) {
+                humGauge.draw(humValue);
+                document.getElementById('humGaugeValue').textContent = humValue.toFixed(1) + ' %';
+                pushBounded(hist.hum, humValue, MAX_POINTS);
+                record.hum = humValue;
+              }
             }
 
             // PWM
             if (d.pwm !== undefined) {
-              const pwmValue = parseInt(d.pwm);
-              pwmGauge.draw(pwmValue);
-              document.getElementById('pwmGaugeValue').textContent = pwmValue;
-              pushBounded(hist.pwm, pwmValue, MAX_POINTS);
+              const pwmValue = parseInt(d.pwm, 10);
+              if (Number.isFinite(pwmValue)) {
+                pwmGauge.draw(pwmValue);
+                document.getElementById('pwmGaugeValue').textContent = pwmValue;
+                pushBounded(hist.pwm, pwmValue, MAX_POINTS);
+                record.pwm = pwmValue;
+              }
             }
 
             // Mode
             if (d.mode !== undefined) {
               modeEl.textContent = d.mode;
               modeEl.className = 'mode-indicator mode-' + d.mode.toLowerCase();
+            }
+
+            if (record.co2 !== null || record.temp !== null || record.hum !== null || record.pwm !== null) {
+              addDataRecord(record);
             }
 
             // Update client-side stats after each sample
@@ -461,18 +520,25 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
         reconnectTimer = setTimeout(connect, reconnectDelay);
       }
     }
-
-    funtion generateCSV() {
-    }
-
     // ===== Buttons =====
     window.downloadCSV = function() {
-      const link = document.createElement('a');
-      link.href = '/download';
-      link.download = 'scd30_data.csv';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      fetch('/download')
+        .then((response) => {
+          if (!response.ok) throw new Error('download_failed');
+          return response.text();
+        })
+        .then((csv) => {
+          if (!csv.trim()) throw new Error('empty');
+          triggerCSVDownload(csv);
+        })
+        .catch(() => {
+          const csv = generateCSV();
+          if (!csv) {
+            alert('No data recorded yet.');
+            return;
+          }
+          triggerCSVDownload(csv);
+        });
     };
 
     window.clearData = function() {
@@ -484,6 +550,7 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
             // reset client-side buffers & timer
             hist.co2.length = hist.temp.length = hist.hum.length = hist.pwm.length = 0;
             co2Data.length = 0;
+            dataRecords.length = 0;
             sessionStartTime = Date.now();
             drawChart();
             updateStatsFromClient();

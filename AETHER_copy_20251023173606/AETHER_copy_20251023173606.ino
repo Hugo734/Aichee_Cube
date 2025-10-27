@@ -161,7 +161,8 @@ struct DataRecord {
   float co2;
   float temperature;
   float humidity;
-  int pwm;
+  int pwm; 
+  float lpm;  
 };
 
 std::vector<DataRecord> dataLog;
@@ -172,6 +173,12 @@ unsigned long systemStartTime = 0;
 
 bool loggingEnabled = true;
 bool dataClearedFlag = false;
+
+// Función para convertir PWM a LPM
+float pwmToLPM(int pwm) {
+  if (pwm == 0) return 0.0;
+  return 1.891 * log(pwm) + 1.5012;
+}
 
 // Memory monitoring
 void checkMemory() {
@@ -214,6 +221,8 @@ void logData() {
   record.humidity = lastHum;
   record.pwm = pwmValue;
   
+  record.lpm = pwmToLPM(pwmValue);
+  
   dataLog.push_back(record);
   
   if (dataLog.size() > MAX_DATA_RECORDS) {
@@ -230,7 +239,7 @@ void logData() {
 String generateCSV() {
   String csv;
   csv.reserve(64 + dataLog.size() * 40);
-  csv += F("Elapsed (DD:HH:MM:SS),CO2 (ppm),Temperature (C),Humidity (%),PWM\n");
+  csv += F("Elapsed (DD:HH:MM:SS),CO2 (ppm),Temperature (C),Humidity (%),PWM,LPM\n");
 
   for (const auto& record : dataLog) {
     csv += getFormattedTime(record.timestamp);
@@ -242,6 +251,8 @@ String generateCSV() {
     csv += String(record.humidity, 1);
     csv += ',';
     csv += String(record.pwm);
+    csv += ',';
+    csv += String(record.lpm, 1);
     csv += '\n';
     
     yield();
@@ -307,7 +318,7 @@ void handleStartLogging() {
 }
 
 void drawGauge(int centerX, int centerY, int radius, float value, float minVal, float maxVal, 
-               const char* label, const char* units) {
+               const char* label, const char* units, bool isLPM = false) {
   
   float range = maxVal - minVal;
   float normalizedValue = constrain((value - minVal) / range, 0.0, 1.0);
@@ -343,7 +354,10 @@ void drawGauge(int centerX, int centerY, int radius, float value, float minVal, 
   
   display.setTextSize(1);
   char valueStr[16];
-  if (maxVal > 100) {
+  if (isLPM) {
+    // Para LPM, siempre mostrar 1 decimal
+    snprintf(valueStr, sizeof(valueStr), "%.1f%s", value, units);
+  } else if (maxVal > 100) {
     snprintf(valueStr, sizeof(valueStr), "%.0f%s", value, units);
   } else {
     snprintf(valueStr, sizeof(valueStr), "%.1f%s", value, units);
@@ -360,13 +374,13 @@ void drawGauge(int centerX, int centerY, int radius, float value, float minVal, 
   display.print(label);
 }
 
-void drawDualGauges(float value1, float min1, float max1, const char* label1, const char* units1,
-                    float value2, float min2, float max2, const char* label2, const char* units2,
+void drawDualGauges(float value1, float min1, float max1, const char* label1, const char* units1, bool isLPM1,
+                    float value2, float min2, float max2, const char* label2, const char* units2, bool isLPM2,
                     const char* screen) {
   display.clearDisplay();
   
-  drawGauge(40, 32, 20, value1, min1, max1, label1, units1);
-  drawGauge(91, 32, 20, value2, min2, max2, label2, units2);
+  drawGauge(40, 32, 20, value1, min1, max1, label1, units1, isLPM1);
+  drawGauge(91, 32, 20, value2, min2, max2, label2, units2, isLPM2);
   
   display.setTextSize(1);
   display.setCursor(108, 0);
@@ -402,52 +416,62 @@ void updateOLED() {
 
     case SCREEN_MODE_MANUAL:
       if (currentGaugeScreen == 0) {
+        float lpm = pwmToLPM(pwmValue);
         drawDualGauges(
-          lastCO2, 0, 2000, "CO2", "ppm",
-          pwmValue, 0, 255, "PWM", "",
+          lastCO2, 0, 2000, "CO2", "ppm", false,
+          lpm, 0, 12, "Flow", "LPM", true,
           "1/2"
         );
       } else {
         drawDualGauges(
-          lastHum, 0, 100, "Humid", "%",
-          lastTemp, 0, 50, "Temp", "C",
+          lastHum, 0, 100, "Humid", "%", false,
+          lastTemp, 0, 50, "Temp", "C", false,
           "2/2"
         );
       }
       break;
 
     case SCREEN_MODE_AUTO_SETUP:
-      display.clearDisplay();
-      display.setTextSize(1);
-      display.setTextColor(SSD1306_WHITE);
-      display.setCursor(0, 0);
-      display.println("Automatic Mode");
-      display.println("Setup");
-      display.println();
-      display.println("Select PWM value:");
-      display.println();
-      display.setTextSize(2);
-      display.setCursor(40, 32);
-      display.print(autoModePWMTarget);
-      display.setTextSize(1);
-      display.println();
-      display.println();
-      display.setCursor(0, 56);
-      display.println("Click to start");
-      display.display();
+      {  
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(SSD1306_WHITE);
+        display.setCursor(0, 0);
+        display.println("Automatic Mode");
+        display.println("Setup");
+        display.println();
+        display.println("Select flow rate:");
+        display.println();
+        display.setTextSize(2);
+        float setupLPM = pwmToLPM(autoModePWMTarget);
+        char lpmStr[16];
+        snprintf(lpmStr, sizeof(lpmStr), "%.1f", setupLPM);
+        
+        display.setCursor(20, 32);
+        display.print(lpmStr);
+        display.setTextSize(1);
+        display.print(" LPM");
+        
+        display.println();
+        display.println();
+        display.setCursor(0, 56);
+        display.println("Click to start");
+        display.display();
+      }  
       break;
 
     case SCREEN_MODE_AUTO_RUNNING:
       if (currentGaugeScreen == 0) {
+        float lpm = pwmToLPM(pwmValue);
         drawDualGauges(
-          lastCO2, 0, 2000, "CO2", "ppm",
-          pwmValue, 0, 255, "PWM", "",
+          lastCO2, 0, 2000, "CO2", "ppm", false,
+          lpm, 0, 12, "Flow", "LPM", true,
           "1/2"
         );
       } else {
         drawDualGauges(
-          lastHum, 0, 100, "Humid", "%",
-          lastTemp, 0, 50, "Temp", "C",
+          lastHum, 0, 100, "Humid", "%", false,
+          lastTemp, 0, 50, "Temp", "C", false,
           "2/2"
         );
       }
@@ -513,6 +537,7 @@ void sendWebSocketData() {
   doc["temp"] = (int)(lastTemp * 10) / 10.0;
   doc["hum"]  = (int)(lastHum * 10) / 10.0;
   doc["pwm"]  = pwmValue;
+  doc["lpm"]  = pwmToLPM(pwmValue);  // AGREGAR ESTA LÍNEA
 
   if (oledScreen == SCREEN_MODE_MANUAL) {
     doc["mode"] = "MANUAL";

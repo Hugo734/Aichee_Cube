@@ -135,7 +135,8 @@ enum OledScreen {
   SCREEN_QR,
   SCREEN_MAIN,
   SCREEN_MODE_MANUAL,
-  SCREEN_MODE_AUTO
+  SCREEN_MODE_AUTO_SETUP,
+  SCREEN_MODE_AUTO_RUNNING
 };
 
 OledScreen oledScreen = SCREEN_SPLASH;
@@ -415,7 +416,28 @@ void updateOLED() {
       }
       break;
 
-    case SCREEN_MODE_AUTO:
+    case SCREEN_MODE_AUTO_SETUP:
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(0, 0);
+      display.println("Automatic Mode");
+      display.println("Setup");
+      display.println();
+      display.println("Select PWM value:");
+      display.println();
+      display.setTextSize(2);
+      display.setCursor(40, 32);
+      display.print(autoModePWMTarget);
+      display.setTextSize(1);
+      display.println();
+      display.println();
+      display.setCursor(0, 56);
+      display.println("Click to start");
+      display.display();
+      break;
+
+    case SCREEN_MODE_AUTO_RUNNING:
       if (currentGaugeScreen == 0) {
         drawDualGauges(
           lastCO2, 0, 2000, "CO2", "ppm",
@@ -444,7 +466,7 @@ void IRAM_ATTR handleEncoder() {
       encoderValue--;
     }
     
-    if (oledScreen == SCREEN_MODE_MANUAL || oledScreen == SCREEN_MODE_AUTO) {
+    if (oledScreen == SCREEN_MODE_MANUAL || oledScreen == SCREEN_MODE_AUTO_SETUP || oledScreen == SCREEN_MODE_AUTO_RUNNING) {
       encoderValue = constrain(encoderValue, 0, 255);
     } else if (oledScreen == SCREEN_MAIN) {
       encoderValue = constrain(encoderValue, 0, 1);
@@ -494,7 +516,7 @@ void sendWebSocketData() {
 
   if (oledScreen == SCREEN_MODE_MANUAL) {
     doc["mode"] = "MANUAL";
-  } else if (oledScreen == SCREEN_MODE_AUTO) {
+  } else if (oledScreen == SCREEN_MODE_AUTO_SETUP || oledScreen == SCREEN_MODE_AUTO_RUNNING) {
     doc["mode"] = "AUTO";
   } else {
     doc["mode"] = "MAIN";
@@ -599,21 +621,30 @@ void onSingleClick() {
       mainMenuSelection = 0;
       break;
     case SCREEN_MAIN:
-      oledScreen = (mainMenuSelection == 0) ? SCREEN_MODE_MANUAL : SCREEN_MODE_AUTO;
-      if (oledScreen == SCREEN_MODE_AUTO) {
-        // En modo automático, aplicar el PWM inmediatamente
-        pwmValue = autoModePWMTarget;
+      if (mainMenuSelection == 0) {
+        oledScreen = SCREEN_MODE_MANUAL;
         encoderValue = pwmValue;
-        ledcWrite(MOTOR_PIN, pwmValue);
         currentGaugeScreen = 0;
-        Serial.printf("Auto mode started with PWM: %d\n", pwmValue);
       } else {
-        encoderValue = pwmValue;
+        // Entrar a modo AUTO en pantalla de setup
+        oledScreen = SCREEN_MODE_AUTO_SETUP;
+        autoModePWMTarget = 255; // Valor por defecto
+        encoderValue = autoModePWMTarget;
+        pwmValue = 0; // Motor apagado mientras configura
+        ledcWrite(MOTOR_PIN, 0);
         currentGaugeScreen = 0;
+        Serial.println("Auto mode setup - adjust PWM and click to start");
       }
       break;
+    case SCREEN_MODE_AUTO_SETUP:
+      // Arrancar el motor con el valor seleccionado
+      pwmValue = autoModePWMTarget;
+      ledcWrite(MOTOR_PIN, pwmValue);
+      oledScreen = SCREEN_MODE_AUTO_RUNNING;
+      Serial.printf("Auto mode started with PWM: %d\n", pwmValue);
+      break;
     case SCREEN_MODE_MANUAL:
-    case SCREEN_MODE_AUTO:
+    case SCREEN_MODE_AUTO_RUNNING:
       currentGaugeScreen = (currentGaugeScreen + 1) % 2;
       break;
   }
@@ -622,7 +653,8 @@ void onSingleClick() {
 void onDoubleClick() {
   switch (oledScreen) {
     case SCREEN_MODE_MANUAL:
-    case SCREEN_MODE_AUTO:
+    case SCREEN_MODE_AUTO_SETUP:
+    case SCREEN_MODE_AUTO_RUNNING:
       oledScreen = SCREEN_MAIN;
       currentGaugeScreen = 0;
       encoderValue = mainMenuSelection;
@@ -722,8 +754,13 @@ void loop() {
   if (oledScreen == SCREEN_MODE_MANUAL) {
     pwmValue = constrain(encoderValue, 0, 255);
     ledcWrite(MOTOR_PIN, pwmValue);
-  } else if (oledScreen == SCREEN_MODE_AUTO) {
-    // En modo automático, actualizar PWM en tiempo real con el encoder
+  } else if (oledScreen == SCREEN_MODE_AUTO_SETUP) {
+    // En setup solo actualiza el target, NO el motor
+    autoModePWMTarget = constrain(encoderValue, 0, 255);
+    pwmValue = 0; // Motor sigue en 0
+    ledcWrite(MOTOR_PIN, 0);
+  } else if (oledScreen == SCREEN_MODE_AUTO_RUNNING) {
+    // En running, el encoder ajusta el PWM en tiempo real
     pwmValue = constrain(encoderValue, 0, 255);
     autoModePWMTarget = pwmValue;
     ledcWrite(MOTOR_PIN, pwmValue);

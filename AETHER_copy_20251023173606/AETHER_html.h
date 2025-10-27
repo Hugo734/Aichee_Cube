@@ -81,9 +81,9 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
     </div>
     
     <div class="btn-group">
-      <button class="btn" onclick="downloadCSV()">📥 Download CSV</button> 
-      <button class="btn btn-info" onclick="startLogging()">▶️ Start</button>
-      <button class="btn btn-danger" onclick="clearData()">🗑️ Clear</button>
+      <button class="btn" onclick="downloadCSV()">Download CSV</button> 
+      <button class="btn btn-info" onclick="startLogging()">Start</button>
+      <button class="btn btn-danger" onclick="clearData()">Clear</button>
     </div>
   </div>
 
@@ -106,9 +106,9 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
         <div class="gauge-value" id="humGaugeValue">— %</div>
       </div>
       <div class="gauge-wrapper">
-        <canvas id="pwmGauge" class="gauge-canvas"></canvas>
-        <div class="gauge-label">PWM</div>
-        <div class="gauge-value" id="pwmGaugeValue">—</div>
+        <canvas id="lpmGauge" class="gauge-canvas"></canvas>
+        <div class="gauge-label">Flow Rate</div>
+        <div class="gauge-value" id="lpmGaugeValue">— LPM</div>
       </div>
     </div>
   </div>
@@ -262,9 +262,9 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
     const co2Gauge  = new Gauge('co2Gauge',  0, 2000, 'ppm', '#FF6B6B');
     const tempGauge = new Gauge('tempGauge', 0,   50, '°C',  '#4ECDC4');
     const humGauge  = new Gauge('humGauge',  0,  100, '%',   '#45B7D1');
-    const pwmGauge  = new Gauge('pwmGauge',  0,  255, '',    '#FFA07A');
+    const lpmGauge  = new Gauge('lpmGauge',  0,   12, 'LPM', '#FFA07A');
 
-    co2Gauge.draw(0); tempGauge.draw(0); humGauge.draw(0); pwmGauge.draw(0);
+    co2Gauge.draw(0); tempGauge.draw(0); humGauge.draw(0); lpmGauge.draw(0);
 
     const canvas = document.getElementById('co2Chart');
     const ctx = canvas.getContext('2d');
@@ -437,13 +437,13 @@ static const char AETHER_html[] PROGMEM = R"====AETHER====(
               }
             }
 
-            if (d.pwm !== undefined) {
-              const pwmValue = parseInt(d.pwm, 10);
-              if (Number.isFinite(pwmValue)) {
-                pwmGauge.draw(pwmValue);
-                document.getElementById('pwmGaugeValue').textContent = pwmValue;
-                pushBounded(hist.pwm, pwmValue, MAX_POINTS);
-                record.pwm = pwmValue;
+            if (d.lpm !== undefined) {
+              const lpmValue = parseFloat(d.lpm);
+              if (Number.isFinite(lpmValue)) {
+                lpmGauge.draw(lpmValue);
+                document.getElementById('lpmGaugeValue').textContent = lpmValue.toFixed(2) + ' LPM';
+                pushBounded(hist.pwm, lpmValue, MAX_POINTS);
+                record.pwm = lpmValue;  // Guardamos como pwm para mantener compatibilidad con CSV
               }
             }
 

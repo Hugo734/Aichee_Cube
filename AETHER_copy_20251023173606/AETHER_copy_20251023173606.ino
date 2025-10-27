@@ -142,14 +142,9 @@ OledScreen oledScreen = SCREEN_SPLASH;
 int mainMenuSelection = 0;
 int currentGaugeScreen = 0;
 
-// Automatic Mode Warmup
-bool warmingUp = false;
-unsigned long warmupStart = 0;
-const unsigned long warmupDuration = 120000; // 2 minutes
-
 // Task Scheduling - OPTIMIZED
 unsigned long lastWebSocketUpdate = 0;
-const unsigned long wsUpdateInterval = 2000;    // ⚠️ Changed: 2s instead of 1s
+const unsigned long wsUpdateInterval = 2000;
 unsigned long lastOLEDUpdate = 0;
 const unsigned long oledUpdateInterval = 500;
 unsigned long lastSensorRead = 0;
@@ -157,7 +152,7 @@ const unsigned long sensorReadInterval = 1000;
 unsigned long lastServerHandle = 0;
 const unsigned long serverHandleInterval = 10;
 unsigned long lastMemoryCheck = 0;
-const unsigned long memoryCheckInterval = 30000; // Check memory every 30s
+const unsigned long memoryCheckInterval = 30000;
 
 // Data Logging - OPTIMIZED FOR 1+ HOUR
 struct DataRecord {
@@ -169,7 +164,7 @@ struct DataRecord {
 };
 
 std::vector<DataRecord> dataLog;
-const size_t MAX_DATA_RECORDS = 2500;  // ⚠️ Changed: 2500 records = ~1.4 hours at 2s interval
+const size_t MAX_DATA_RECORDS = 2500;
 unsigned long lastDataLog = 0;
 const unsigned long dataLogInterval = 2000;
 unsigned long systemStartTime = 0;
@@ -185,8 +180,7 @@ void checkMemory() {
   Serial.printf("Free Heap: %u bytes | Min Free: %u bytes | Records: %u\n", 
                 freeHeap, minFreeHeap, dataLog.size());
   
-  // Critical memory check
-  if (freeHeap < 20000) {  // Less than 20KB free
+  if (freeHeap < 20000) {
     Serial.println("⚠️ LOW MEMORY WARNING! Clearing oldest 500 records...");
     if (dataLog.size() > 500) {
       dataLog.erase(dataLog.begin(), dataLog.begin() + 500);
@@ -221,12 +215,10 @@ void logData() {
   
   dataLog.push_back(record);
   
-  // Remove oldest if exceeds max
   if (dataLog.size() > MAX_DATA_RECORDS) {
     dataLog.erase(dataLog.begin());
   }
   
-  // Periodic debug (every 100 records)
   if (dataLog.size() % 100 == 0) {
     Serial.printf("Data logged #%d: CO2=%.0f, Temp=%.1f, Hum=%.1f, PWM=%d, Time=%s\n", 
                   dataLog.size(), record.co2, record.temperature, record.humidity, 
@@ -234,10 +226,9 @@ void logData() {
   }
 }
 
-// Optimized CSV generation with chunking
 String generateCSV() {
   String csv;
-  csv.reserve(64 + dataLog.size() * 40); // Pre-allocate memory
+  csv.reserve(64 + dataLog.size() * 40);
   csv += F("Elapsed (DD:HH:MM:SS),CO2 (ppm),Temperature (C),Humidity (%),PWM\n");
 
   for (const auto& record : dataLog) {
@@ -252,7 +243,7 @@ String generateCSV() {
     csv += String(record.pwm);
     csv += '\n';
     
-    yield(); // Prevent watchdog timeout during large CSV generation
+    yield();
   }
 
   return csv;
@@ -275,7 +266,7 @@ void handleDownloadCSV() {
 
 void handleClearData() {
   dataLog.clear();
-  dataLog.shrink_to_fit(); // Release memory
+  dataLog.shrink_to_fit();
   systemStartTime = millis();
   lastDataLog = millis();
   dataClearedFlag = true;
@@ -325,7 +316,6 @@ void drawGauge(int centerX, int centerY, int radius, float value, float minVal, 
   float angleRange = endAngle - startAngle;
   float currentAngle = startAngle + (angleRange * normalizedValue);
   
-  // Draw gauge arc
   for (int angle = 0; angle <= 270; angle += 15) {
     float rad = (225 - angle) * PI / 180.0;
     int x1 = centerX + cos(rad) * radius;
@@ -335,7 +325,6 @@ void drawGauge(int centerX, int centerY, int radius, float value, float minVal, 
     display.drawLine(x1, y1, x2, y2, SSD1306_WHITE);
   }
   
-  // Draw major tick marks
   for (int i = 0; i <= 4; i++) {
     float angle = startAngle + (angleRange * i / 4);
     int x1 = centerX + cos(angle) * radius;
@@ -345,15 +334,12 @@ void drawGauge(int centerX, int centerY, int radius, float value, float minVal, 
     display.drawLine(x1, y1, x2, y2, SSD1306_WHITE);
   }
   
-  // Draw needle
   int needleX = centerX + cos(currentAngle) * (radius - 7);
   int needleY = centerY - sin(currentAngle) * (radius - 7);
   display.drawLine(centerX, centerY, needleX, needleY, SSD1306_WHITE);
   
-  // Draw center pivot
   display.fillCircle(centerX, centerY, 2, SSD1306_WHITE);
   
-  // Display value
   display.setTextSize(1);
   char valueStr[16];
   if (maxVal > 100) {
@@ -368,7 +354,6 @@ void drawGauge(int centerX, int centerY, int radius, float value, float minVal, 
   display.setCursor(centerX - w/2, centerY + radius + 2);
   display.print(valueStr);
   
-  // Display label
   display.getTextBounds(label, 0, 0, &x1, &y1, &w, &h);
   display.setCursor(centerX - w/2, centerY - radius - 8);
   display.print(label);
@@ -431,41 +416,18 @@ void updateOLED() {
       break;
 
     case SCREEN_MODE_AUTO:
-      if (warmingUp) {
-        display.clearDisplay();
-        display.setTextSize(1);
-        display.setTextColor(SSD1306_WHITE);
-        display.setCursor(0, 0);
-        unsigned long elapsed = millis() - warmupStart;
-        unsigned long remaining = (elapsed < warmupDuration) ? 
-                                   (warmupDuration - elapsed) : 0;
-        display.println("Auto Mode - Warmup");
-        display.print("Time left: ");
-        display.print(remaining / 1000);
-        display.println(" s");
-        display.println();
-        display.print("Target PWM: ");
-        display.println(autoModePWMTarget);
-        display.print("Current PWM: ");
-        display.println(pwmValue);
-        display.println();
-        display.println("Adjust PWM with encoder");
-        display.println("Double-click to exit");
-        display.display();
+      if (currentGaugeScreen == 0) {
+        drawDualGauges(
+          lastCO2, 0, 2000, "CO2", "ppm",
+          pwmValue, 0, 255, "PWM", "",
+          "1/2"
+        );
       } else {
-        if (currentGaugeScreen == 0) {
-          drawDualGauges(
-            lastCO2, 0, 2000, "CO2", "ppm",
-            pwmValue, 0, 255, "PWM", "",
-            "1/2"
-          );
-        } else {
-          drawDualGauges(
-            lastHum, 0, 100, "Humid", "%",
-            lastTemp, 0, 50, "Temp", "C",
-            "2/2"
-          );
-        }
+        drawDualGauges(
+          lastHum, 0, 100, "Humid", "%",
+          lastTemp, 0, 50, "Temp", "C",
+          "2/2"
+        );
       }
       break;
   }
@@ -482,10 +444,7 @@ void IRAM_ATTR handleEncoder() {
       encoderValue--;
     }
     
-    // Constrain encoder value
-    if (oledScreen == SCREEN_MODE_MANUAL) {
-      encoderValue = constrain(encoderValue, 0, 255);
-    } else if (oledScreen == SCREEN_MODE_AUTO && warmingUp) {
+    if (oledScreen == SCREEN_MODE_MANUAL || oledScreen == SCREEN_MODE_AUTO) {
       encoderValue = constrain(encoderValue, 0, 255);
     } else if (oledScreen == SCREEN_MAIN) {
       encoderValue = constrain(encoderValue, 0, 1);
@@ -524,14 +483,13 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 }
 
 void sendWebSocketData() {
-  // Optimized JSON document size
   StaticJsonDocument<128> doc;
   char out[128];
 
   doc["t"]    = millis();
-  doc["co2"]  = (int)lastCO2;        // Send as int to save bytes
-  doc["temp"] = (int)(lastTemp * 10) / 10.0; // 1 decimal
-  doc["hum"]  = (int)(lastHum * 10) / 10.0;  // 1 decimal
+  doc["co2"]  = (int)lastCO2;
+  doc["temp"] = (int)(lastTemp * 10) / 10.0;
+  doc["hum"]  = (int)(lastHum * 10) / 10.0;
   doc["pwm"]  = pwmValue;
 
   if (oledScreen == SCREEN_MODE_MANUAL) {
@@ -562,15 +520,14 @@ void setupWiFiAP() {
   
   dnsServer.start(DNS_PORT, "*", IP);
   
-  // HTTP routes
   server.on("/", handleRoot);
   server.on("/download", handleDownloadCSV);
   server.on("/clear", HTTP_POST, handleClearData);
   server.on("/startlog", HTTP_POST, handleStartLogging);
   server.on("/toggle", HTTP_POST, handleToggleLogging);
-  server.on("/generate_204", handleRoot);  // Android captive portal
+  server.on("/generate_204", handleRoot);
   server.on("/gen_204", handleRoot);
-  server.on("/hotspot-detect.html", handleRoot);  // iOS
+  server.on("/hotspot-detect.html", handleRoot);
   server.onNotFound(handleNotFound);
   
   server.begin();
@@ -578,14 +535,13 @@ void setupWiFiAP() {
   
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
-  webSocket.enableHeartbeat(20000, 5000, 3); // More relaxed heartbeat
+  webSocket.enableHeartbeat(20000, 5000, 3);
   Serial.println("WebSocket server started on port 81");
 }
 
 void setup() {
   Serial.begin(115200);
   
-  // Configure watchdog timer (30 seconds) - ESP32 Arduino Core 3.x
   esp_task_wdt_config_t wdt_config = {
     .timeout_ms = 30000,
     .idle_core_mask = 0,
@@ -596,14 +552,12 @@ void setup() {
   
   systemStartTime = millis();
 
-  // Encoder setup
   pinMode(ENCODER_CLK, INPUT);
   pinMode(ENCODER_DT, INPUT);
   pinMode(ENCODER_SW, INPUT_PULLUP);
   lastEncoder = digitalRead(ENCODER_CLK);
   attachInterrupt(digitalPinToInterrupt(ENCODER_CLK), handleEncoder, CHANGE);
   
-  // OLED setup
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
     Serial.println("OLED not found!");
     while (true) { esp_task_wdt_reset(); delay(1000); }
@@ -611,11 +565,9 @@ void setup() {
   display.clearDisplay();
   display.display();
   
-  // PWM setup
   ledcAttach(MOTOR_PIN, 5000, 8);
   ledcWrite(MOTOR_PIN, 0);
   
-  // SCD30 setup
   if (!airSensor.begin()) {
     Serial.println("SCD30 not detected!");
     display.clearDisplay();
@@ -628,7 +580,6 @@ void setup() {
     airSensor.setMeasurementInterval(3);
   }
   
-  // Reserve memory
   dataLog.reserve(MAX_DATA_RECORDS);
   
   setupWiFiAP();
@@ -650,13 +601,12 @@ void onSingleClick() {
     case SCREEN_MAIN:
       oledScreen = (mainMenuSelection == 0) ? SCREEN_MODE_MANUAL : SCREEN_MODE_AUTO;
       if (oledScreen == SCREEN_MODE_AUTO) {
-        warmingUp = true;
-        warmupStart = millis();
-        pwmValue = 0;
-        autoModePWMTarget = 255;
-        encoderValue = autoModePWMTarget;
+        // En modo automático, aplicar el PWM inmediatamente
+        pwmValue = autoModePWMTarget;
+        encoderValue = pwmValue;
         ledcWrite(MOTOR_PIN, pwmValue);
         currentGaugeScreen = 0;
+        Serial.printf("Auto mode started with PWM: %d\n", pwmValue);
       } else {
         encoderValue = pwmValue;
         currentGaugeScreen = 0;
@@ -674,7 +624,6 @@ void onDoubleClick() {
     case SCREEN_MODE_MANUAL:
     case SCREEN_MODE_AUTO:
       oledScreen = SCREEN_MAIN;
-      warmingUp = false;
       currentGaugeScreen = 0;
       encoderValue = mainMenuSelection;
       break;
@@ -732,16 +681,10 @@ void handleModeButton() {
 void loop() {
   unsigned long currentMillis = millis();
 
-  // Reset watchdog
   esp_task_wdt_reset();
-
-  // DNS server
   dnsServer.processNextRequest();
-
-  // Button handling
   handleModeButton();
 
-  // HTTP and WebSocket (skip during splash)
   if (oledScreen != SCREEN_SPLASH) {
     if (currentMillis - lastServerHandle >= serverHandleInterval) {
       lastServerHandle = currentMillis;
@@ -750,7 +693,6 @@ void loop() {
     }
   }
   
-  // Read sensor
   if (currentMillis - lastSensorRead >= sensorReadInterval) {
     lastSensorRead = currentMillis;
     if (airSensor.dataAvailable()) {
@@ -761,20 +703,17 @@ void loop() {
     }
   }
   
-  // Log data
   if (oledScreen != SCREEN_SPLASH && loggingEnabled && 
       currentMillis - lastDataLog >= dataLogInterval && sensorDataValid) {
     lastDataLog = currentMillis;
     logData();
   }
   
-  // Memory check
   if (currentMillis - lastMemoryCheck >= memoryCheckInterval) {
     lastMemoryCheck = currentMillis;
     checkMemory();
   }
   
-  // Update menu selection
   if (oledScreen == SCREEN_MAIN) {
     mainMenuSelection = constrain(encoderValue, 0, 1);
   }
@@ -784,23 +723,17 @@ void loop() {
     pwmValue = constrain(encoderValue, 0, 255);
     ledcWrite(MOTOR_PIN, pwmValue);
   } else if (oledScreen == SCREEN_MODE_AUTO) {
-    if (warmingUp) {
-      autoModePWMTarget = constrain(encoderValue, 0, 255);
-      if (currentMillis - warmupStart >= warmupDuration) {
-        warmingUp = false;
-        pwmValue = autoModePWMTarget;
-        ledcWrite(MOTOR_PIN, pwmValue);
-      }
-    }
+    // En modo automático, actualizar PWM en tiempo real con el encoder
+    pwmValue = constrain(encoderValue, 0, 255);
+    autoModePWMTarget = pwmValue;
+    ledcWrite(MOTOR_PIN, pwmValue);
   }
 
-  // OLED update
   if (currentMillis - lastOLEDUpdate >= oledUpdateInterval) {
     lastOLEDUpdate = currentMillis;
     updateOLED();
   }
 
-  // WebSocket broadcast
   if (oledScreen != SCREEN_SPLASH && 
       currentMillis - lastWebSocketUpdate >= wsUpdateInterval) {
     lastWebSocketUpdate = currentMillis;

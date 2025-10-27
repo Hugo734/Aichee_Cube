@@ -637,14 +637,20 @@ void onSingleClick() {
       }
       break;
     case SCREEN_MODE_AUTO_SETUP:
-      // Arrancar el motor con el valor seleccionado
+      // Arrancar el motor con el valor seleccionado y pasar a pantalla de gauges
       pwmValue = autoModePWMTarget;
+      encoderValue = pwmValue; // Sincronizar encoder con el PWM
       ledcWrite(MOTOR_PIN, pwmValue);
       oledScreen = SCREEN_MODE_AUTO_RUNNING;
+      currentGaugeScreen = 0; // Comenzar en pantalla 1/2
       Serial.printf("Auto mode started with PWM: %d\n", pwmValue);
       break;
     case SCREEN_MODE_MANUAL:
+      // En modo manual, alternar entre pantallas de gauges
+      currentGaugeScreen = (currentGaugeScreen + 1) % 2;
+      break;
     case SCREEN_MODE_AUTO_RUNNING:
+      // En modo auto running, alternar entre pantallas de gauges igual que manual
       currentGaugeScreen = (currentGaugeScreen + 1) % 2;
       break;
   }

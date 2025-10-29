@@ -442,7 +442,7 @@ void updateOLED() {
         display.println();
         display.println("Select flow rate:");
         display.println();
-        display.setTextSize(2);
+        display.setTextSize(1);
         float setupLPM = pwmToLPM(autoModePWMTarget);
         char lpmStr[16];
         snprintf(lpmStr, sizeof(lpmStr), "%.1f", setupLPM);
